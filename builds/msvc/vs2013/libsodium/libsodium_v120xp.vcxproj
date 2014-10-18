@@ -336,9 +336,7 @@
     <ClInclude Include="..\..\..\..\src\libsodium\crypto_stream\aes256estream\hongjun\aes-table.h" />
     <ClInclude Include="..\..\..\..\src\libsodium\crypto_stream\aes256estream\hongjun\aes-table-be.h" />
     <ClInclude Include="..\..\..\..\src\libsodium\crypto_stream\aes256estream\hongjun\aes-table-le.h" />
-    <ClCompile Include="..\..\..\..\src\libsodium\crypto_stream\aes256estream\hongjun\aes256-ctr.c" />
     <ClInclude Include="..\..\..\..\src\libsodium\crypto_stream\aes256estream\hongjun\aes256.h" />
-    <ClCompile Include="..\..\..\..\src\libsodium\crypto_stream\aes256estream\stream_aes256estream_api.c" />
     <ClInclude Include="..\..\..\..\src\libsodium\crypto_stream\aes256estream\hongjun\api.h" />
     <ClInclude Include="..\..\..\..\src\libsodium\crypto_stream\aes256estream\hongjun\ecrypt-sync.h" />
     <ClInclude Include="..\..\..\..\src\libsodium\crypto_stream\salsa20\amd64_xmm6\api.h" />
@@ -368,7 +366,6 @@
     <ClCompile Include="..\..\..\..\src\libsodium\randombytes\randombytes.c" />
     <ClCompile Include="..\..\..\..\src\libsodium\randombytes\salsa20\randombytes_salsa20_random.c" />
     <ClCompile Include="..\..\..\..\src\libsodium\randombytes\sysrandom\randombytes_sysrandom.c" />
-    <ClCompile Include="..\..\..\..\src\libsodium\sodium\compat.c" />
     <ClCompile Include="..\..\..\..\src\libsodium\sodium\core.c" />
     <ClCompile Include="..\..\..\..\src\libsodium\sodium\runtime.c" />
     <ClCompile Include="..\..\..\..\src\libsodium\sodium\utils.c" />
