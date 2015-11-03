@@ -37,9 +37,16 @@ crypto_generichash_keybytes(void)
     return crypto_generichash_KEYBYTES;
 }
 
-const char *crypto_generichash_primitive(void)
+const char *
+crypto_generichash_primitive(void)
 {
     return crypto_generichash_PRIMITIVE;
+}
+
+size_t
+crypto_generichash_statebytes(void)
+{
+    return (sizeof(crypto_generichash_state) + (size_t) 63U) & ~(size_t) 63U;
 }
 
 int

@@ -1,5 +1,5 @@
 AC_PREREQ([2.65])
-AC_INIT([libsodium],[1.0.1],
+AC_INIT([libsodium],[1.0.6],
   [https://github.com/jedisct1/libsodium/issues],
   [libsodium],
   [https://github.com/jedisct1/libsodium])
@@ -16,10 +16,10 @@ AC_SUBST(VERSION)
 ISODATE=`date +%Y-%m-%d`
 AC_SUBST(ISODATE)
 
-SODIUM_LIBRARY_VERSION_MAJOR=7
-SODIUM_LIBRARY_VERSION_MINOR=4
-DLL_VERSION=6
-SODIUM_LIBRARY_VERSION=14:0:1
+SODIUM_LIBRARY_VERSION_MAJOR=8
+SODIUM_LIBRARY_VERSION_MINOR=0
+DLL_VERSION=7
+SODIUM_LIBRARY_VERSION=17:0:0
 #                       | | |
 #                +------+ | +---+
 #                |        |     |
@@ -143,8 +143,12 @@ AC_PROG_CC_C99
 AM_PROG_AS
 AC_USE_SYSTEM_EXTENSIONS
 
-AX_CHECK_COMPILE_FLAG([-D_FORTIFY_SOURCE=2],
-  [CPPFLAGS="$CPPFLAGS -D_FORTIFY_SOURCE=2"])
+AC_CHECK_DEFINE([__native_client__], [NATIVECLIENT="yes"], [])
+
+AC_CHECK_DEFINE([_FORTIFY_SOURCE], [], [
+  AX_CHECK_COMPILE_FLAG([-D_FORTIFY_SOURCE=2],
+    [CPPFLAGS="$CPPFLAGS -D_FORTIFY_SOURCE=2"])
+])
 
 AX_CHECK_COMPILE_FLAG([-fvisibility=hidden],
   [CFLAGS="$CFLAGS -fvisibility=hidden"])
@@ -159,16 +163,10 @@ AS_CASE([$host_os], [cygwin*|mingw*|msys|pw32*|cegcc*], [ ], [
 
 AS_IF([test "$enable_pie" != "no"],[
   AX_CHECK_COMPILE_FLAG([-fPIE], [
-    AX_CHECK_LINK_FLAG([-fPIE], [
-        AX_CHECK_LINK_FLAG([-Wl,-pie], [
-            CFLAGS="$CFLAGS -fPIE"
-            LDFLAGS="$LDFLAGS -Wl,-pie"
-        ], [
-            AX_CHECK_LINK_FLAG([-pie], [
-                CFLAGS="$CFLAGS -fPIE"
-                LDFLAGS="$LDFLAGS -pie"
-            ])
-        ])
+    AX_CHECK_LINK_FLAG([-fPIE],
+      [AX_CHECK_LINK_FLAG([-pie],
+        [CFLAGS="$CFLAGS -fPIE"
+         LDFLAGS="$LDFLAGS -pie"])
     ])
   ])
 ])
@@ -183,7 +181,7 @@ LIBTOOL_EXTRA_FLAGS="$LIBTOOL_EXTRA_FLAGS -version-info $SODIUM_LIBRARY_VERSION"
 AC_ARG_ENABLE(soname-versions,
   [AC_HELP_STRING([--enable-soname-versions], [enable soname versions (must be disabled for Android) (default: enabled)])],
     [
-	AS_IF([test "x$enableval" = "xno"], [
+        AS_IF([test "x$enableval" = "xno"], [
           LIBTOOL_EXTRA_FLAGS="$LIBTOOL_OLD_FLAGS -avoid-version"
         ])
     ]
@@ -265,23 +263,36 @@ dnl Checks for headers
 AS_IF([test "x$EMSCRIPTEN" = "x"],[
 
   AC_MSG_CHECKING(for MMX instructions set)
+  oldcflags="$CFLAGS"
+  AX_CHECK_COMPILE_FLAG([-mmmx], [CFLAGS="$CFLAGS -mmmx"])
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #pragma GCC target("mmx")
 #include <mmintrin.h>
 ]], [[ __m64 x = _mm_setzero_si64(); ]])],
     [AC_MSG_RESULT(yes)
-     AC_DEFINE([HAVE_MMINTRIN_H], [1], [mmx is available])],
+     AC_DEFINE([HAVE_MMINTRIN_H], [1], [mmx is available])
+     AX_CHECK_COMPILE_FLAG([-mmmx], [CFLAGS_MMX="-mmmx"])],
     [AC_MSG_RESULT(no)])
+  CFLAGS="$oldcflags"
 
   AC_MSG_CHECKING(for SSE2 instructions set)
+  oldcflags="$CFLAGS"
+  AX_CHECK_COMPILE_FLAG([-msse2], [CFLAGS="$CFLAGS -msse2"])
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #pragma GCC target("sse2")
+#ifndef __SSE2__
+# define __SSE2__
+#endif
 #include <emmintrin.h>
 ]], [[ __m128d x = _mm_setzero_pd(); ]])],
     [AC_MSG_RESULT(yes)
-     AC_DEFINE([HAVE_EMMINTRIN_H], [1], [sse2 is available])],
+     AC_DEFINE([HAVE_EMMINTRIN_H], [1], [sse2 is available])
+     AX_CHECK_COMPILE_FLAG([-msse2], [CFLAGS_SSE2="-msse2"])],
     [AC_MSG_RESULT(no)])
+  CFLAGS="$oldcflags"
 
+  oldcflags="$CFLAGS"
+  AX_CHECK_COMPILE_FLAG([-msse3], [CFLAGS="$CFLAGS -msse3"])
   AC_MSG_CHECKING(for SSE3 instructions set)
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #pragma GCC target("sse3")
@@ -289,18 +300,64 @@ AS_IF([test "x$EMSCRIPTEN" = "x"],[
 ]], [[ __m128 x = _mm_addsub_ps(_mm_cvtpd_ps(_mm_setzero_pd()),
                                 _mm_cvtpd_ps(_mm_setzero_pd())); ]])],
     [AC_MSG_RESULT(yes)
-     AC_DEFINE([HAVE_PMMINTRIN_H], [1], [sse3 is available])],
+     AC_DEFINE([HAVE_PMMINTRIN_H], [1], [sse3 is available])
+     AX_CHECK_COMPILE_FLAG([-msse3], [CFLAGS_SSE3="-msse3"])],
     [AC_MSG_RESULT(no)])
+  CFLAGS="$oldcflags"
 
+  oldcflags="$CFLAGS"
+  AX_CHECK_COMPILE_FLAG([-mssse3], [CFLAGS="$CFLAGS -mssse3"])
   AC_MSG_CHECKING(for SSSE3 instructions set)
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #pragma GCC target("ssse3")
 #include <tmmintrin.h>
 ]], [[ __m64 x = _mm_abs_pi32(_m_from_int(0)); ]])],
     [AC_MSG_RESULT(yes)
-     AC_DEFINE([HAVE_TMMINTRIN_H], [1], [ssse3 is available])],
+     AC_DEFINE([HAVE_TMMINTRIN_H], [1], [ssse3 is available])
+     AX_CHECK_COMPILE_FLAG([-mssse3], [CFLAGS_SSSE3="-mssse3"])],
     [AC_MSG_RESULT(no)])
+  CFLAGS="$oldcflags"
+
+  oldcflags="$CFLAGS"
+  AX_CHECK_COMPILE_FLAG([-msse4.1], [CFLAGS="$CFLAGS -msse4.1"])
+  AC_MSG_CHECKING(for SSE4.1 instructions set)
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#pragma GCC target("sse4.1")
+#include <smmintrin.h>
+]], [[ __m128i x = _mm_minpos_epu16(_mm_setzero_si128()); ]])],
+    [AC_MSG_RESULT(yes)
+     AC_DEFINE([HAVE_SMMINTRIN_H], [1], [sse4.1 is available])
+     AX_CHECK_COMPILE_FLAG([-msse4.1], [CFLAGS_SSE41="-msse4.1"])],
+    [AC_MSG_RESULT(no)])
+  CFLAGS="$oldcflags"
+
+  oldcflags="$CFLAGS"
+  AX_CHECK_COMPILE_FLAG([-maes], [CFLAGS="$CFLAGS -maes"])
+  AX_CHECK_COMPILE_FLAG([-mpclmul], [CFLAGS="$CFLAGS -mpclmul"])
+  AC_MSG_CHECKING(for AESNI instructions set and PCLMULQDQ)
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#pragma GCC target("aes")
+#pragma GCC target("pclmul")
+#include <wmmintrin.h>
+]], [[ __m128i x = _mm_aesimc_si128(_mm_setzero_si128());
+       __m128i y = _mm_clmulepi64_si128(_mm_setzero_si128(), _mm_setzero_si128(), 0);]])],
+    [AC_MSG_RESULT(yes)
+     AC_DEFINE([HAVE_WMMINTRIN_H], [1], [aesni is available])
+     AX_CHECK_COMPILE_FLAG([-maes], [CFLAGS_AESNI="-maes"])
+     AX_CHECK_COMPILE_FLAG([-mpclmul], [CFLAGS_PCLMUL="-mpclmul"])
+     ],
+    [AC_MSG_RESULT(no)])
+  CFLAGS="$oldcflags"
+
 ])
+
+AC_SUBST(CFLAGS_MMX)
+AC_SUBST(CFLAGS_SSE2)
+AC_SUBST(CFLAGS_SSE3)
+AC_SUBST(CFLAGS_SSSE3)
+AC_SUBST(CFLAGS_SSE41)
+AC_SUBST(CFLAGS_AESNI)
+AC_SUBST(CFLAGS_PCLMUL)
 
 AC_CHECK_HEADERS([sys/mman.h])
 
@@ -357,7 +414,7 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 # error mode(TI) is a gcc extension
 #endif
 #if defined(__clang__) && !defined(__x86_64__)
-# error clang doesn't properly compile smult_curve25519_donna_c64.c
+# error clang does not properly compile smult_curve25519_donna_c64.c
 #endif
 #ifndef NATIVE_LITTLE_ENDIAN
 # error donna_c64 currently requires a little endian CPU
@@ -408,13 +465,22 @@ void f(void *x) { __dummy(x); }
  AC_DEFINE([HAVE_WEAK_SYMBOLS], [1], [weak symbols are supported])],
 [AC_MSG_RESULT(no)])
 
+AC_MSG_CHECKING(if data alignment is required)
+aligned_access_required=yes
 AS_CASE([$host_cpu],
   [i*86 | x86_64 | powerpc* | s390*],
-    [AC_MSG_NOTICE([data alignment is not required on this target])],
-  [*],
-    [AC_MSG_NOTICE([data alignment is required on this target])
-     AC_DEFINE([CPU_ALIGNED_ACCESS_REQUIRED], [1], [data alignment is required])]
+    [aligned_access_required=no],
+  [arm*],
+    [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#ifndef __ARM_FEATURE_UNALIGNED
+# error data alignment is required
+#endif
+      ]], [[]])], [aligned_access_required=no], [])]
 )
+AS_IF([test "x$aligned_access_required" = "xyes"],
+  [AC_MSG_RESULT(yes)
+   AC_DEFINE([CPU_ALIGNED_ACCESS_REQUIRED], [1], [data alignment is required])],
+  [AC_MSG_RESULT(no)])
 
 dnl Checks for functions and headers
 
@@ -422,16 +488,19 @@ AS_IF([test "x$EMSCRIPTEN" = "x"],[
   AC_CHECK_FUNCS([arc4random arc4random_buf])
   AC_CHECK_FUNCS([mmap mlock madvise mprotect explicit_bzero])
 ])
-AC_CHECK_FUNCS([posix_memalign])
+AC_CHECK_FUNCS([posix_memalign getpid])
 
 AC_SUBST([LIBTOOL_EXTRA_FLAGS])
 
 TEST_LDFLAGS=''
 AS_IF([test "x$EMSCRIPTEN" != "x"],[
   EXEEXT=.js
-  TEST_LDFLAGS='--pre-js pre.js.inc'
+  TEST_LDFLAGS='--memory-init-file 0 --pre-js pre.js.inc -s NO_BROWSER=1 -s RESERVED_FUNCTION_POINTERS=8'
 ])
 AC_SUBST(TEST_LDFLAGS)
+AM_CONDITIONAL([EMSCRIPTEN], [test "x$EMSCRIPTEN" != "x"])
+
+AM_CONDITIONAL([NATIVECLIENT], [test "x$NATIVECLIENT" != "x"])
 
 dnl Libtool.
 

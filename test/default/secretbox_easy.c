@@ -24,12 +24,15 @@ unsigned char m[131]
         0x60, 0x90, 0x2e, 0x52, 0xf0, 0xa0, 0x89, 0xbc, 0x76, 0x89, 0x70, 0x40,
         0xe0, 0x82, 0xf9, 0x37, 0x76, 0x38, 0x48, 0x64, 0x5e, 0x07, 0x05 };
 
-unsigned char c[147 + crypto_secretbox_MACBYTES];
-unsigned char mac[crypto_secretbox_MACBYTES];
-
 int main(void)
 {
-    size_t i;
+    unsigned char *c;
+    unsigned char *mac;
+    size_t         i;
+
+    c = (unsigned char *) sodium_malloc(131 + crypto_secretbox_MACBYTES + 1);
+    mac = (unsigned char *) sodium_malloc(crypto_secretbox_MACBYTES);
+    assert(c != NULL && mac != NULL);
 
     crypto_secretbox_easy(c, m, 131, nonce, firstkey);
     for (i = 0; i < 131 + crypto_secretbox_MACBYTES; ++i) {
@@ -50,8 +53,41 @@ int main(void)
         if (i % 8 == 7)
             printf("\n");
     }
+    printf("\n");
+
+    /* Same test, with c and m overlapping */
+
+    memcpy(c + 1, m, 131);
+    crypto_secretbox_easy(c, c + 1, 131, nonce, firstkey);
+    for (i = 0; i < 131 + crypto_secretbox_MACBYTES; ++i) {
+        printf(",0x%02x", (unsigned int)c[i]);
+        if (i % 8 == 7)
+            printf("\n");
+    }
+    printf("\n");
+
+    memcpy(c, m, 131);
+    crypto_secretbox_easy(c + 1, c, 131, nonce, firstkey);
+    for (i = 0; i < 131 + crypto_secretbox_MACBYTES; ++i) {
+        printf(",0x%02x", (unsigned int)c[i + 1]);
+        if (i % 8 == 7)
+            printf("\n");
+    }
+    printf("\n");
+
+    memcpy(c, m, 131);
+    crypto_secretbox_easy(c, c, 131, nonce, firstkey);
+    for (i = 0; i < 131 + crypto_secretbox_MACBYTES; ++i) {
+        printf(",0x%02x", (unsigned int)c[i]);
+        if (i % 8 == 7)
+            printf("\n");
+    }
+    printf("\n");
 
     assert(crypto_secretbox_easy(c, m, SIZE_MAX - 1U, nonce, firstkey) == -1);
+
+    sodium_free(mac);
+    sodium_free(c);
 
     return 0;
 }

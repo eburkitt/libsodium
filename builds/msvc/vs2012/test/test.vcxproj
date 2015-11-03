@@ -64,8 +64,11 @@
     <Import Project="$(ProjectDir)$(ProjectName).props" />
   </ImportGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\test\default\aead_aes256gcm.c">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\test\default\aead_chacha20poly1305.c">
-      <ExcludedFromBuild>false</ExcludedFromBuild>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\default\auth.c">
       <ExcludedFromBuild>true</ExcludedFromBuild>
@@ -101,6 +104,12 @@
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\default\box_easy2.c">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\default\box_seal.c">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\default\box_seed.c">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\default\core1.c">
@@ -149,6 +158,9 @@
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\default\pwhash.c">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\default\pwhash_scrypt_ll.c">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\default\randombytes.c">
@@ -226,7 +238,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\test\default\cmptest.h" />
-    <ClInclude Include="..\..\..\..\test\quirks\windows\windows-quirks.h" />
+    <ClInclude Include="..\..\..\..\test\quirks\quirks.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

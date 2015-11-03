@@ -18,6 +18,7 @@ libsodium_la_SOURCES = \
 	crypto_auth/hmacsha512256/cp/verify_hmacsha512256.c \
 	crypto_box/crypto_box.c \
 	crypto_box/crypto_box_easy.c \
+	crypto_box/crypto_box_seal.c \
 	crypto_box/curve25519xsalsa20poly1305/box_curve25519xsalsa20poly1305_api.c \
 	crypto_box/curve25519xsalsa20poly1305/ref/api.h \
 	crypto_box/curve25519xsalsa20poly1305/ref/after_curve25519xsalsa20poly1305.c \
@@ -35,7 +36,11 @@ libsodium_la_SOURCES = \
 	crypto_generichash/blake2/ref/api.h \
 	crypto_generichash/blake2/ref/blake2-impl.h \
 	crypto_generichash/blake2/ref/blake2.h \
+	crypto_generichash/blake2/ref/blake2b-compress-ref.c \
+	crypto_generichash/blake2/ref/blake2b-load-sse2.h \
+	crypto_generichash/blake2/ref/blake2b-load-sse41.h \
 	crypto_generichash/blake2/ref/blake2b-ref.c \
+	crypto_generichash/blake2/ref/blake2b-round.h \
 	crypto_generichash/blake2/ref/generichash_blake2b.c \
 	crypto_hash/crypto_hash.c \
 	crypto_hash/sha256/hash_sha256_api.c \
@@ -46,13 +51,11 @@ libsodium_la_SOURCES = \
 	crypto_hash/sha512/cp/hash_sha512.c \
 	crypto_onetimeauth/crypto_onetimeauth.c \
 	crypto_onetimeauth/poly1305/onetimeauth_poly1305.c \
-	crypto_onetimeauth/poly1305/onetimeauth_poly1305_api.c \
-	crypto_onetimeauth/poly1305/onetimeauth_poly1305_try.c \
+	crypto_onetimeauth/poly1305/onetimeauth_poly1305.h \
 	crypto_onetimeauth/poly1305/donna/poly1305_donna.h \
 	crypto_onetimeauth/poly1305/donna/poly1305_donna32.h \
 	crypto_onetimeauth/poly1305/donna/poly1305_donna64.h \
 	crypto_onetimeauth/poly1305/donna/auth_poly1305_donna.c \
-	crypto_onetimeauth/poly1305/donna/verify_poly1305_donna.c \
 	crypto_pwhash/scryptsalsa208sha256/crypto_scrypt-common.c \
 	crypto_pwhash/scryptsalsa208sha256/crypto_scrypt.h \
 	crypto_pwhash/scryptsalsa208sha256/scrypt_platform.c \
@@ -61,7 +64,6 @@ libsodium_la_SOURCES = \
 	crypto_pwhash/scryptsalsa208sha256/pwhash_scryptsalsa208sha256.c \
 	crypto_pwhash/scryptsalsa208sha256/sysendian.h \
 	crypto_pwhash/scryptsalsa208sha256/nosse/pwhash_scryptsalsa208sha256_nosse.c \
-	crypto_pwhash/scryptsalsa208sha256/sse/pwhash_scryptsalsa208sha256_sse.c \
 	crypto_scalarmult/crypto_scalarmult.c \
 	crypto_scalarmult/curve25519/scalarmult_curve25519_api.c \
 	crypto_secretbox/crypto_secretbox.c \
@@ -149,12 +151,24 @@ libsodium_la_SOURCES = \
 	crypto_verify/64/ref/api.h \
 	crypto_verify/64/ref/verify_64.c \
 	randombytes/randombytes.c \
-	randombytes/salsa20/randombytes_salsa20_random.c \
-	randombytes/sysrandom/randombytes_sysrandom.c \
 	sodium/core.c \
 	sodium/runtime.c \
 	sodium/utils.c \
 	sodium/version.c
+
+if !EMSCRIPTEN
+libsodium_la_SOURCES += \
+	randombytes/salsa20/randombytes_salsa20_random.c
+
+if NATIVECLIENT
+libsodium_la_SOURCES += \
+	randombytes/nativeclient/randombytes_nativeclient.c
+else
+libsodium_la_SOURCES += \
+    randombytes/sysrandom/randombytes_sysrandom.c
+endif
+
+endif
 
 if HAVE_TI_MODE
 libsodium_la_SOURCES += \
@@ -255,3 +269,30 @@ endif
 
 SUBDIRS = \
 	include
+
+libsodium_la_LIBADD = libaesni.la libsse2.la libssse3.la libsse41.la
+noinst_LTLIBRARIES =  libaesni.la libsse2.la libssse3.la libsse41.la
+
+libaesni_la_LDFLAGS = $(libsodium_la_LDFLAGS)
+libaesni_la_CPPFLAGS = $(libsodium_la_CPPFLAGS) \
+	@CFLAGS_SSSE3@ @CFLAGS_AESNI@ @CFLAGS_PCLMUL@
+libaesni_la_SOURCES = \
+	crypto_aead/aes256gcm/aesni/aead_aes256gcm_aesni.c
+
+libsse2_la_LDFLAGS = $(libsodium_la_LDFLAGS)
+libsse2_la_CPPFLAGS = $(libsodium_la_CPPFLAGS) \
+	@CFLAGS_SSE2@
+libsse2_la_SOURCES = \
+	crypto_pwhash/scryptsalsa208sha256/sse/pwhash_scryptsalsa208sha256_sse.c
+
+libssse3_la_LDFLAGS = $(libsodium_la_LDFLAGS)
+libssse3_la_CPPFLAGS = $(libsodium_la_CPPFLAGS) \
+	@CFLAGS_SSE2@ @CFLAGS_SSSE3@
+libssse3_la_SOURCES = \
+	crypto_generichash/blake2/ref/blake2b-compress-ssse3.c
+
+libsse41_la_LDFLAGS = $(libsodium_la_LDFLAGS)
+libsse41_la_CPPFLAGS = $(libsodium_la_CPPFLAGS) \
+	@CFLAGS_SSE2@ @CFLAGS_SSSE3@ @CFLAGS_SSE41@
+libsse41_la_SOURCES = \
+	crypto_generichash/blake2/ref/blake2b-compress-sse41.c
