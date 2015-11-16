@@ -16,10 +16,10 @@ AC_SUBST(VERSION)
 ISODATE=`date +%Y-%m-%d`
 AC_SUBST(ISODATE)
 
-SODIUM_LIBRARY_VERSION_MAJOR=8
+SODIUM_LIBRARY_VERSION_MAJOR=9
 SODIUM_LIBRARY_VERSION_MINOR=0
-DLL_VERSION=7
-SODIUM_LIBRARY_VERSION=17:0:0
+DLL_VERSION=8
+SODIUM_LIBRARY_VERSION=18:0:0
 #                       | | |
 #                +------+ | +---+
 #                |        |     |
@@ -332,6 +332,19 @@ AS_IF([test "x$EMSCRIPTEN" = "x"],[
   CFLAGS="$oldcflags"
 
   oldcflags="$CFLAGS"
+  AX_CHECK_COMPILE_FLAG([-mavx], [CFLAGS="$CFLAGS -mavx"])
+  AC_MSG_CHECKING(for AVX instructions set)
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#pragma GCC target("avx")
+#include <immintrin.h>
+]], [[ _mm256_zeroall(); ]])],
+    [AC_MSG_RESULT(yes)
+     AC_DEFINE([HAVE_AVXINTRIN_H], [1], [AVX is available])
+     AX_CHECK_COMPILE_FLAG([-mavx], [CFLAGS_AVX="-mavx"])],
+    [AC_MSG_RESULT(no)])
+  CFLAGS="$oldcflags"
+
+  oldcflags="$CFLAGS"
   AX_CHECK_COMPILE_FLAG([-maes], [CFLAGS="$CFLAGS -maes"])
   AX_CHECK_COMPILE_FLAG([-mpclmul], [CFLAGS="$CFLAGS -mpclmul"])
   AC_MSG_CHECKING(for AESNI instructions set and PCLMULQDQ)
@@ -386,7 +399,7 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 
 HAVE_AMD64_ASM_V=0
 AS_IF([test "$enable_asm" != "no"],[
-  AC_MSG_CHECKING(whether we should use x86_64 asm code)
+  AC_MSG_CHECKING(whether we can use x86_64 asm code)
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
   ]], [[
 #if defined(__amd64) || defined(__amd64__) || defined(__x86_64__)
@@ -397,34 +410,62 @@ AS_IF([test "$enable_asm" != "no"],[
 #else
 # error !x86_64
 #endif
-__asm__("pxor %xmm12,%xmm6");
+__asm__ __volatile__ ("pxor %xmm12,%xmm6");
 ]])],
   [AC_MSG_RESULT(yes)
-   AC_DEFINE([HAVE_AMD64_ASM], [1], [x86_64 asm code should be used])
+   AC_DEFINE([HAVE_AMD64_ASM], [1], [x86_64 asm code can be used])
    HAVE_AMD64_ASM_V=1],
   [AC_MSG_RESULT(no)])
 ])
 AM_CONDITIONAL([HAVE_AMD64_ASM], [test $HAVE_AMD64_ASM_V = 1])
 AC_SUBST(HAVE_AMD64_ASM_V)
 
+HAVE_AVX_ASM_V=0
+AS_IF([test "$enable_asm" != "no"],[
+  AC_MSG_CHECKING(whether we can assemble AVX opcodes)
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+  ]], [[
+#if defined(__amd64) || defined(__amd64__) || defined(__x86_64__)
+# if defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(_WIN32) || defined(_WIN64)
+#  error Windows x86_64 calling conventions are not supported yet
+# endif
+/* neat */
+#else
+# error !x86_64
+#endif
+__asm__ __volatile__ ("vpunpcklqdq %xmm0,%xmm13,%xmm0");
+]])],
+  [AC_MSG_RESULT(yes)
+   AC_DEFINE([HAVE_AVX_ASM], [1], [AVX opcodes are supported])
+   HAVE_AVX_ASM_V=1],
+  [AC_MSG_RESULT(no)])
+])
+AM_CONDITIONAL([HAVE_AVX_ASM], [test $HAVE_AVX_ASM_V = 1])
+AC_SUBST(HAVE_AVX_ASM_V)
+
 AC_MSG_CHECKING(for 128-bit arithmetic)
 HAVE_TI_MODE_V=0
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#ifndef __GNUC__
-# error mode(TI) is a gcc extension
+#if !defined(__GNUC__) && !defined(__SIZEOF_INT128__)
+# error mode(TI) is a gcc extension, and __int128 is not available
 #endif
 #if defined(__clang__) && !defined(__x86_64__)
-# error clang does not properly compile smult_curve25519_donna_c64.c
+# error clang does not properly handle the 128-bit type on 32-bit systems
 #endif
 #ifndef NATIVE_LITTLE_ENDIAN
-# error donna_c64 currently requires a little endian CPU
+# error libsodium currently expects a little endian CPU for the 128-bit type
 #endif
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 # error emscripten currently supports only shift operations on integers \
 #       larger than 64 bits
 #endif
+#include <stddef.h>
 #include <stdint.h>
+#if defined(__SIZEOF_INT128__)
+typedef unsigned __int128 uint128_t;
+#else
 typedef unsigned uint128_t __attribute__((mode(TI)));
+#endif
 void fcontract(uint128_t *t) {
   *t += 0x8000000000000 - 1;
 }

@@ -24,9 +24,12 @@
 
 #include <string.h>
 #include <stdint.h>
-#include "api.h"
 
 #ifdef HAVE_TI_MODE
+
+#include "utils.h"
+#include "curve25519_donna_c64.h"
+#include "../scalarmult_curve25519.h"
 
 typedef uint8_t u8;
 typedef uint64_t limb;
@@ -442,8 +445,12 @@ crecip(felem out, const felem z) {
   /* 2^255 - 21 */ fmul(out, t0, a);
 }
 
-int
-crypto_scalarmult(u8 *mypublic, const u8 *secret, const u8 *basepoint) {
+static const unsigned char basepoint[32] = {9};
+
+static int
+crypto_scalarmult_curve25519_donna_c64(unsigned char *mypublic,
+                                       const unsigned char *secret,
+                                       const unsigned char *basepoint) {
   limb bp[5], x[5], z[5], zmone[5];
   uint8_t e[32];
   int i;
@@ -460,5 +467,18 @@ crypto_scalarmult(u8 *mypublic, const u8 *secret, const u8 *basepoint) {
   fcontract(mypublic, z);
   return 0;
 }
+
+static int
+crypto_scalarmult_curve25519_donna_c64_base(unsigned char *q,
+                                            const unsigned char *n)
+{
+  return crypto_scalarmult_curve25519_donna_c64(q, n, basepoint);
+}
+
+struct crypto_scalarmult_curve25519_implementation
+crypto_scalarmult_curve25519_donna_c64_implementation = {
+    SODIUM_C99(.mult = ) crypto_scalarmult_curve25519_donna_c64,
+    SODIUM_C99(.mult_base = ) crypto_scalarmult_curve25519_donna_c64_base
+};
 
 #endif

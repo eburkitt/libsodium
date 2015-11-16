@@ -1,3 +1,5 @@
+sudo: false
+
 language: c
 
 os:
@@ -18,6 +20,7 @@ script:
  - make distclean
  - ./configure --disable-dependency-tracking --enable-minimal
  - make distcheck
+ - ( echo '#include <sodium.h>' ; echo 'int main(void) { return sodium_init(); }' ) > /tmp/main.c && gcc -Isrc/libsodium/include -Isrc/libsodium/include/sodium $(find src -name '*.c' -o -name '*.S') /tmp/main.c
 
 env:
   global:

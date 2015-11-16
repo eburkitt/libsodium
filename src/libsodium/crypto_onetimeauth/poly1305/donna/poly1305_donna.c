@@ -10,14 +10,15 @@
 #include "../onetimeauth_poly1305.h"
 
 static void
-poly1305_update(poly1305_context *ctx, const unsigned char *m,
-                unsigned long long bytes) {
-    poly1305_state_internal_t *st = (poly1305_state_internal_t *)(void *)ctx;
+poly1305_update(poly1305_state_internal_t *st, const unsigned char *m,
+                unsigned long long bytes)
+{
     unsigned long long i;
 
     /* handle leftover */
     if (st->leftover) {
         unsigned long long want = (poly1305_block_size - st->leftover);
+
         if (want > bytes)
             want = bytes;
         for (i = 0; i < want; i++)
@@ -34,6 +35,7 @@ poly1305_update(poly1305_context *ctx, const unsigned char *m,
     /* process full blocks */
     if (bytes >= poly1305_block_size) {
         unsigned long long want = (bytes & ~(poly1305_block_size - 1));
+
         poly1305_blocks(st, m, want);
         m += want;
         bytes -= want;
@@ -41,8 +43,9 @@ poly1305_update(poly1305_context *ctx, const unsigned char *m,
 
     /* store leftover */
     if (bytes) {
-        for (i = 0; i < bytes; i++)
+        for (i = 0; i < bytes; i++) {
             st->buffer[st->leftover + i] = m[i];
+        }
         st->leftover += bytes;
     }
 }
@@ -52,10 +55,11 @@ crypto_onetimeauth_poly1305_donna(unsigned char *out, const unsigned char *m,
                                   unsigned long long inlen,
                                   const unsigned char *key)
 {
-    poly1305_context ctx;
-    poly1305_init(&ctx, key);
-    poly1305_update(&ctx, m, inlen);
-    poly1305_finish(&ctx, out);
+    CRYPTO_ALIGN(64) crypto_onetimeauth_poly1305_state state;
+
+    poly1305_init((poly1305_state_internal_t *)(void *) &state, key);
+    poly1305_update((poly1305_state_internal_t *)(void *) &state, m, inlen);
+    poly1305_finish((poly1305_state_internal_t *)(void *) &state, out);
 
     return 0;
 }
@@ -64,7 +68,9 @@ static int
 crypto_onetimeauth_poly1305_donna_init(crypto_onetimeauth_poly1305_state *state,
                                        const unsigned char *key)
 {
-    poly1305_init((poly1305_context *) state, key);
+    (void) sizeof(int[sizeof (crypto_onetimeauth_poly1305_state) >=
+                      sizeof (poly1305_state_internal_t) ? 1 : -1]);
+    poly1305_init((poly1305_state_internal_t *)(void *) state, key);
 
     return 0;
 }
@@ -74,7 +80,7 @@ crypto_onetimeauth_poly1305_donna_update(crypto_onetimeauth_poly1305_state *stat
                                          const unsigned char *in,
                                          unsigned long long inlen)
 {
-    poly1305_update((poly1305_context *) state, in, inlen);
+    poly1305_update((poly1305_state_internal_t *)(void *) state, in, inlen);
 
     return 0;
 }
@@ -83,7 +89,7 @@ static int
 crypto_onetimeauth_poly1305_donna_final(crypto_onetimeauth_poly1305_state *state,
                                         unsigned char *out)
 {
-    poly1305_finish((poly1305_context *) state, out);
+    poly1305_finish((poly1305_state_internal_t *)(void *) state, out);
 
     return 0;
 }
@@ -97,6 +103,7 @@ crypto_onetimeauth_poly1305_donna_verify(const unsigned char *h,
     unsigned char correct[16];
 
     crypto_onetimeauth_poly1305_donna(correct,in,inlen,k);
+
     return crypto_verify_16(h,correct);
 }
 
