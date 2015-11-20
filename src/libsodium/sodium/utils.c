@@ -113,7 +113,7 @@ sodium_memcmp(const void * const b1_, const void * const b2_, size_t len)
     for (i = 0U; i < len; i++) {
         d |= b1[i] ^ b2[i];
     }
-    return (int) ((1 & ((d - 1) >> 8)) - 1);
+    return (1 & ((d - 1) >> 8)) - 1;
 }
 
 #ifdef HAVE_WEAK_SYMBOLS
@@ -158,24 +158,54 @@ int
 sodium_is_zero(const unsigned char *n, const size_t nlen)
 {
     size_t        i;
-    unsigned char c = 0U;
+    unsigned char d = 0U;
 
-    for (i = (size_t) 0U; i < nlen; i++) {
-        c |= n[i];
+    for (i = 0U; i < nlen; i++) {
+        d |= n[i];
     }
-    return ((c - 1U) >> 8) & 1U;
+    return 1 & ((d - 1) >> 8);
 }
 
 void
 sodium_increment(unsigned char *n, const size_t nlen)
 {
-    size_t       i;
-    unsigned int c = 1U << 8;
-
-    for (i = (size_t) 0U; i < nlen; i++) {
-        c >>= 8;
-        c += n[i];
+    size_t        i = 0U;
+#if !defined(CPU_UNALIGNED_ACCESS) || !defined(NATIVE_LITTLE_ENDIAN)
+    uint_fast16_t c = 1U;
+#else
+    uint_fast64_t c = 1U;
+    for (; i < (nlen & ~0x3); i += 4U) {
+        c += (uint_fast64_t) *((const uint32_t *) (const void *) &n[i]);
+        *((uint32_t *) (void *) &n[i]) = (uint32_t) c;
+        c >>= 32;
+    }
+#endif
+    for (; i < nlen; i++) {
+        c += (uint_fast16_t) n[i];
         n[i] = (unsigned char) c;
+        c >>= 8;
+    }
+}
+
+void
+sodium_add(unsigned char *a, const unsigned char *b, const size_t len)
+{
+    size_t        i = 0U;
+#if !defined(CPU_UNALIGNED_ACCESS) || !defined(NATIVE_LITTLE_ENDIAN)
+    uint_fast16_t c = 0U;
+#else
+    uint_fast64_t c = 0U;
+    for (; i < (len & ~0x3); i += 4U) {
+        c += (uint_fast64_t) *((const uint32_t *) (const void *) &a[i]) +
+             (uint_fast64_t) *((const uint32_t *) (const void *) &b[i]);
+        *((uint32_t *) (void *) &a[i]) = (uint32_t) c;
+        c >>= 32;
+    }
+#endif
+    for (; i < len; i++) {
+        c += (uint_fast16_t) a[i] + (uint_fast16_t) b[i];
+        a[i] = (unsigned char) c;
+        c >>= 8;
     }
 }
 
